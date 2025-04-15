@@ -3,6 +3,8 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.responses import JSONResponse
 from fastapi import Request
+
+from config.constants.errors import INTERNAL_SERVER_ERROR
 from repository.encryption_key_store_repository import EncryptionKeyStoreRepository
 from repository.encryption_key_store_repository_impl import EncryptionKeyStoreRepositoryImpl
 from schema.auth_token_schema import AuthTokenSchema
@@ -43,7 +45,7 @@ async def sign_up(request: SignUpRequest, db_session: AsyncSession) -> JSONRespo
         token: str = await create_token(user=user, db_session=db_session)
 
         # Create public/private key pair
-        public_key, encrypted_private_key = utils.generate_encryption_key_pair(Keys.JWT_SECRET)
+        public_key, encrypted_private_key = utils.generate_encryption_key_pair()
         encryption_repository: EncryptionKeyStoreRepository = EncryptionKeyStoreRepositoryImpl(db_session=db_session)
         await encryption_repository.create_public_key(user_id=user.id, public_key=public_key, encrypted_private_key=encrypted_private_key)
 
@@ -61,13 +63,14 @@ async def sign_up(request: SignUpRequest, db_session: AsyncSession) -> JSONRespo
         return response
 
     except HTTPException as http_exc:
+        await db_session.rollback()
         logger.warning(f"Auth failed: {http_exc.detail}")
         raise http_exc
 
     except Exception as e:
         logger.error(f"Sign up error: {e}")
         await db_session.rollback()
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
 
 async def sign_in(request: SignInRequest, db_session: AsyncSession) -> JSONResponse | None:
@@ -96,22 +99,23 @@ async def sign_in(request: SignInRequest, db_session: AsyncSession) -> JSONRespo
         return response
 
     except HTTPException as http_exc:
+        await db_session.rollback()
         logger.warning(f"Auth failed: {http_exc.detail}")
         raise http_exc
 
     except Exception as e:
         logger.error(f"Sign in error: {e}")
         await db_session.rollback()
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
 
 async def create_token(user: UserSchema, db_session: AsyncSession) -> str | None:
     try:
         created_at = int(time.time())
         expires_at = created_at + Keys.TOKEN_MAX_AGE
-        token = jwt.encode({"user_id": str(user.id), "iat": created_at, "exp": expires_at}, Keys.JWT_SECRET, algorithm='HS256')
+        token = jwt.encode({"user_id": str(user.id), "iat": created_at, "exp": expires_at, "role": user.role.value}, Keys.JWT_SECRET, algorithm='HS256')
         auth_token_repo: AuthTokenRepository = AuthTokenRepositoryImpl(db_session=db_session)
-        await auth_token_repo.add_token(user_id=user.id, token=token, created_at=created_at, expires_at=expires_at)
+        await auth_token_repo.add(user_id=user.id, token=token, created_at=created_at, expires_at=expires_at)
         return token
     except Exception as e:
         raise TokenCreationError(f"Token creation failed: {str(e)}")

@@ -9,7 +9,7 @@ class AuthTokenRepositoryImpl(AuthTokenRepository):
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
-    async def add_token(self, user_id: UUID, token: str, created_at: int, expires_at: int):
+    async def add(self, user_id: UUID, token: str, created_at: int, expires_at: int):
         auth_token = AuthTokenSchema(
             user_id=user_id,
             token=token,
