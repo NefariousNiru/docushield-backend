@@ -26,3 +26,8 @@ class DocumentRepositoryImpl(DocumentRepository):
         await self.db_session.commit()
         await self.db_session.refresh(document)
 
+
+    async def get_all_by_uploader_id(self, user_id: UUID) -> List[DocumentSchema]:
+        query = select(DocumentSchema).where(DocumentSchema.uploader_id == user_id).order_by(DocumentSchema.created_at.desc())
+        result = await self.db_session.execute(query)
+        return result.scalars().all()

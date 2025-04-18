@@ -12,3 +12,6 @@ class DocumentRepository(Protocol):
 
     async def add(self, document: DocumentSchema):
         ...
+
+    async def get_all_by_uploader_id(self, user_id: UUID) -> List[DocumentSchema]:
+        ...

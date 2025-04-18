@@ -37,7 +37,7 @@ async def get_document_info(user_id: UUID, db_session: AsyncSession) -> list[Doc
         org_name_map = await user_repo.find_all_name_by_user_id(user_ids=uploader_ids)
 
         return [
-            DocumentResponse(id=doc.id, title=doc.title, created_at=doc.created_at, uploaded_by=org_name_map.get(doc.uploader_id, "Unknown Org"))
+            DocumentResponse(id=doc.id, title=doc.title, created_at=doc.created_at, uploaded_by=org_name_map.get(doc.uploader_id, "Unknown Org"), uploaded_for=None)
             for doc in documents
         ]
 
@@ -165,3 +165,21 @@ async def get_document(document_id: UUID, user_id: UUID, db_session: AsyncSessio
     except Exception as e:
         logger.error(f"[DownloadDocument] Failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+async def get_document_by_uploader_id(uploader_id: UUID, db_session) -> list[DocumentResponse]:
+    try:
+        docRepo: DocumentRepository = DocumentRepositoryImpl(db_session=db_session)
+        docs =  await docRepo.get_all_by_uploader_id(user_id=uploader_id)
+
+        userRepo: UserRepository = UserRepositoryImpl(db_session=db_session)
+        name = await userRepo.find_all_name_by_user_id(user_ids=[doc.owner_id for doc in docs])
+        print(name)
+        return [
+            DocumentResponse(id=doc.id, title=doc.title, created_at=doc.created_at,
+                             uploaded_for=name.get(doc.owner_id, "Unknown Owner"), uploaded_by=None)
+            for doc in docs
+        ]
+    except Exception as e:
+        logger.error(f"Error fetching documents: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)

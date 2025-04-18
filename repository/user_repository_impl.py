@@ -32,7 +32,7 @@ class UserRepositoryImpl(UserRepository):
         return result.scalar_one_or_none()
 
 
-    async def find_all_name_by_user_id(self, user_ids: list[str]) -> dict | None:
+    async def find_all_name_by_user_id(self, user_ids: list[UUID]) -> dict | None:
         """
         Searches for all names for a list of user_ids
         :param user_ids: A list of uploader ids
