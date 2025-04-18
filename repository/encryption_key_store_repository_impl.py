@@ -3,7 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from repository.encryption_key_store_repository import EncryptionKeyStoreRepository
 from uuid import UUID
 import time
-
 from schema.encryption_key_store_schema import EncryptionKeyStoreSchema
 
 
@@ -25,5 +24,11 @@ class EncryptionKeyStoreRepositoryImpl(EncryptionKeyStoreRepository):
 
     async def get_public_key_by_user_id(self, user_id: UUID) -> str | None:
         query = select(EncryptionKeyStoreSchema.public_key).where(EncryptionKeyStoreSchema.user_id == user_id)
+        result = await self.db_session.execute(query)
+        return result.scalar_one_or_none()
+
+
+    async def get_private_key_by_user_id(self, user_id: UUID) -> str | None:
+        query = select(EncryptionKeyStoreSchema.encrypted_private_key).where(EncryptionKeyStoreSchema.user_id == user_id)
         result = await self.db_session.execute(query)
         return result.scalar_one_or_none()

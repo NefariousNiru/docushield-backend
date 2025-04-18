@@ -9,3 +9,6 @@ class EncryptionKeyStoreRepository(Protocol):
 
     async def get_public_key_by_user_id(self, user_id: UUID) -> str | None:
         ...
+
+    async def get_private_key_by_user_id(self, user_id: UUID) -> str | None:
+        ...
