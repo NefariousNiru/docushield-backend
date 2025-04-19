@@ -14,7 +14,7 @@ async def get_public_key(user_id: UUID, db_session: AsyncSession) -> JSONRespons
         encryption_repo: EncryptionKeyStoreRepository =  EncryptionKeyStoreRepositoryImpl(db_session=db_session)
         public_key: str | None =  await encryption_repo.get_public_key_by_user_id(user_id=user_id)
         if public_key is not None:
-            return JSONResponse({"public_key": public_key})
+            return JSONResponse({"public_key": public_key, "user_id": user_id})
         else:
             raise ObjectNotFoundError(f"Public key not found for user: {user_id}")
     except Exception as e:

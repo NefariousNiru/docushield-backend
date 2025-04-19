@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.constants.errors import INTERNAL_SERVER_ERROR
 from config.constants.keys import Keys
 from exceptions.object_not_found import ObjectNotFoundError
-from model.document import DocumentResponse
+from model.document_response import DocumentResponse
 from model.document_upload_request import DocumentUploadRequest
 from repository.document_repository import DocumentRepository
 from repository.document_repository_impl import DocumentRepositoryImpl
@@ -43,29 +43,6 @@ async def get_document_info(user_id: UUID, db_session: AsyncSession) -> list[Doc
 
     except Exception as e:
         logger.error(f"Error fetching documents: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
-
-
-async def get_document_hash(user_id: UUID, document_id: UUID, db_session: AsyncSession) -> dict:
-    try:
-        document_repo = DocumentRepositoryImpl(db_session=db_session)
-        document: DocumentSchema | None = await document_repo.get_by_id(document_id)
-        if not document:
-            raise ObjectNotFoundError("Document not found")
-
-        if str(document.owner_id) != str(user_id):
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        return {"hash": document.hash}
-
-    except ObjectNotFoundError as e:
-        raise HTTPException(status_code=404, detail=e.message)
-
-    except HTTPException as http_ex:
-        raise http_ex
-
-    except Exception as e:
-        logger.error(f"Error occurred while fetching document_id: {document_id} for user: {user_id}", exc_info=True)
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
 
@@ -113,11 +90,10 @@ async def add_document(form_data: DocumentUploadRequest, uploader_id: UUID, file
         document_repo: DocumentRepository = DocumentRepositoryImpl(db_session)
         await document_repo.add(
             document=DocumentSchema(
-                id=uuid.uuid4(),
+                id=document_sha256,
                 uploader_id=uploader_id,
                 owner_id=form_data.owner_id,
                 encrypted_data=signed_encrypted_blob,
-                hash=document_sha256,
                 created_at=int(time.time()),
                 title=form_data.title
             )
@@ -139,7 +115,7 @@ async def add_document(form_data: DocumentUploadRequest, uploader_id: UUID, file
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
 
-async def get_document(document_id: UUID, user_id: UUID, db_session: AsyncSession):
+async def get_document(document_id: str, user_id: UUID, db_session: AsyncSession):
     try:
         # Fetch document
         document_repo = DocumentRepositoryImpl(db_session)
@@ -174,7 +150,6 @@ async def get_document_by_uploader_id(uploader_id: UUID, db_session) -> list[Doc
 
         userRepo: UserRepository = UserRepositoryImpl(db_session=db_session)
         name = await userRepo.find_all_name_by_user_id(user_ids=[doc.owner_id for doc in docs])
-        print(name)
         return [
             DocumentResponse(id=doc.id, title=doc.title, created_at=doc.created_at,
                              uploaded_for=name.get(doc.owner_id, "Unknown Owner"), uploaded_by=None)

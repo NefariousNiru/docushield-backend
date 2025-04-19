@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from uuid import UUID
 
 class DocumentResponse(BaseModel):
-    id: UUID
+    id: str
     title: str
     uploaded_by: str | None
     uploaded_for: str | None

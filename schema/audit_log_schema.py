@@ -10,7 +10,7 @@ class AuditLogSchema(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
     action = Column(Enum(AuditAction), nullable=False)
-    doc_id = Column(UUID(as_uuid=True), ForeignKey("document.id"), nullable=True)
+    doc_id = Column(String(64), ForeignKey("document.id"), nullable=True)
     timestamp = Column(BigInteger, nullable=False)
     ip_address = Column(String(45), nullable=False)  # supports IPv6
     user_agent = Column(Text, nullable=False)
