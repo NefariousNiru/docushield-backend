@@ -42,7 +42,7 @@ async def get_document_info(user_id: UUID, db_session: AsyncSession) -> list[Doc
         ]
 
     except Exception as e:
-        logger.error(f"Error fetching documents: {e}")
+        logger.error(f"Error fetching documents: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
 
@@ -65,7 +65,7 @@ async def get_document_hash(user_id: UUID, document_id: UUID, db_session: AsyncS
         raise http_ex
 
     except Exception as e:
-        logger.error(f"Error occurred while fetching document_id: {document_id} for user: {user_id}")
+        logger.error(f"Error occurred while fetching document_id: {document_id} for user: {user_id}", exc_info=True)
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
 

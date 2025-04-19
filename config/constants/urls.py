@@ -6,6 +6,7 @@ class InternalURIs:
     DOCUMENT_DOWNLOAD_V1 = DOCUMENT_V1 + "/download"
     DOCUMENT_HASH_V1 = DOCUMENT_V1 + "/hash"
     DOCUMENT_UPLOADS_V1 = DOCUMENT_V1 + "/upload"
+    ACCESS_HISTORY_V1 = "/v1/me/access-history"
 
 class ExternalURLs:
     pass

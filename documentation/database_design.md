@@ -2,81 +2,120 @@
 
 ---
 #### User
-```text
-id: UUID PRIMARY KEY
-email: VARCHAR UNIQUE, NOT NULL
-name: VARCHAR NOT NULL
-password: TEXT NOT NULL -- store as bcrypt-hash 
-role: ENUM('INDIVIDUAL', 'ORGANIZATION') NOT NULL
-is_active: BOOLEAN DEFAULT TRUE FOR ROLE: 'INDIVIDUAL' DEFAULT FALSE FOR ROLE: 'ORGANIZATIONS'
+```python
+class UserSchema(Base):
+    __tablename__ = "user"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String, unique=True, nullable=False)
+    name = Column(String, nullable=False)
+    password = Column(String, nullable=False)  # hashed
+    role = Column(Enum(AccountType), nullable=False)
+    is_active = Column(Boolean, nullable=False)
+
+class AccountType(Enum):
+    INDIVIDUAL = "INDIVIDUAL"
+    ORGANIZATION = "ORGANIZATION"
 ```
 
 ---
 #### Document
-```text
-id: UUID PRIMARY KEY
-uploader_id: UUID NOT NULL FOREIGN KEY (User) 'id'
-owner_id: UUID NOT NULL FOREIGN KEY(User) 'id'
-encrypted_data: BYTEA NOT NULL
-hash: VARCHAR(64) UNIQUE NOT NULL
-created_at: BIGINT (EPOCH FROM NOW())
-title: TEXT NOT NULL
+```python
+class DocumentSchema(Base):
+    __tablename__ = "document"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    uploader_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
+
+    encrypted_data = Column(BYTEA, nullable=False)
+    hash = Column(String(64), unique=True, nullable=False)
+    created_at = Column(BigInteger, nullable=False)
+    title = Column(Text, nullable=False)
 ```
 
 ---
 
 #### AccessRequest
-```text
-id: UUID PRIMARY KEY
-requester_id: UUID NOT NULL FOREIGN KEY (User) 'id'
-doc_id: UUID NOT NULL FOREIGN KEY (Document) 'id'
-status: ENUM (PENDING, APPROVED, DECLINED, COMPLETED) DEFAULT PENDING
-requested_at: BIGINT
-approved_at: BIGINT
+```python
+class AccessRequestSchema(Base):
+    __tablename__ = "access_request"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    requester_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
+    doc_id = Column(UUID(as_uuid=True), ForeignKey("document.id"), nullable=False)
+    status = Column(Enum(AccessStatus), default=AccessStatus.PENDING, nullable=False)
+    requested_at = Column(BigInteger, nullable=False)
+    approved_at = Column(BigInteger, nullable=True)
+
+class AccessStatus(Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    DECLINED = "DECLINED"
+    COMPLETED = "COMPLETED"
 ```
 
 ---
 
 #### AuthToken
-```text
-id: INTEGER AI PRIMARY KEY
-user_id: UUID NOT NULL FOREIGN KEY (User) 'id'
-token: VARCHAR NOT NULL
-created_at BIGINT DEFAULT NOW()
-expires_at: BIGINT DEFAULT 24 hours from creation
+```python
+class AuthTokenSchema(Base):
+    __tablename__ = "auth_token"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
+    token = Column(String, nullable=False)
+    created_at = Column(BigInteger, nullable=False)
+    expires_at = Column(BigInteger, nullable=False)
 ```
 
 ---
 
 #### AuditLog
-```text
-id: BIGINT AUTO INCREMENT PRIMARY KEY
-user_id: UUID NOT NULL FOREIGN KEY (User)
-action: ENUM('Requested Document', 'Approved Request', 'Downloaded Document', 'Revoked Access', 'Login', 'Logout')
-doc_id: UUID NULL FOREIGN KEY (Document)
-timestamp: BIGINT NOW()
-ip_address: VARCHAR(45) IPv4 and 6 NOT NULL
-user_agent: TEXT NOT NULL
+```python
+class AuditLogSchema(Base):
+    __tablename__ = "audit_log"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
+    action = Column(Enum(AuditAction), nullable=False)
+    doc_id = Column(UUID(as_uuid=True), ForeignKey("document.id"), nullable=True)
+    timestamp = Column(BigInteger, nullable=False)
+    ip_address = Column(String(45), nullable=False)  # supports IPv6
+    user_agent = Column(Text, nullable=False)
+
+class AuditAction(Enum):
+    REQUESTED_DOCUMENT = "Requested Document"
+    APPROVED_REQUEST = "Approved Request"
+    DOWNLOADED_DOCUMENT = "Downloaded Document"
+    REVOKED_ACCESS = "Revoked Access"
+    LOGIN = "Login"
+    LOGOUT = "Logout"
 ```
 
 ---
 
 #### EncryptionKeyStore
-```text
-user_id UUID NOT NULL REFERENCES "user"(id) UNIQUE,  PRIMARY KEY -- One key store per user
-public_key TEXT NOT NULL,  -- User's public key for encryption
-encrypted_private_key TEXT NOT NULL,  -- Encrypted version of user's private key
-created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())
+```python
+class EncryptionKeyStoreSchema(Base):
+    __tablename__ = "encryption_key_store"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), primary_key=True, unique=True, nullable=False)
+    public_key = Column(String, nullable=False)
+    encrypted_private_key = Column(String, nullable=False)
+    created_at = Column(BigInteger, nullable=False, default=lambda: int(time.time()))
 ```
 ---
 
 #### AuthLogs
-```text
-id BIGINT AUTO INCREMENT PRIMARY KEY,
-user_id UUID NOT NULL REFERENCES "user"(id),
-failed_attempts INT DEFAULT 0,
-last_attempt BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()),
-blocked_until BIGINT NULL  -- If blocked, stores Unix timestamp when the block expires
+```python
+class AuthLogsSchema(Base):
+    __tablename__ = "encryption_key_store"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), primary_key=True, unique=True, nullable=False)
+    failed_attempts = Column(Integer, default=0, nullable=False)
+    last_attempt = Column(BIGINT, default=lambda: int(time.time()), nullable=False)
+    blocked_until = Column(BIGINT, nullable=True)
 ```
 
 ---
