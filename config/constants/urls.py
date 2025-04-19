@@ -9,6 +9,7 @@ class InternalURIs:
     ACCESS_HISTORY_V1 =  ME_V1 + "/access-history"
     REQUEST_ACCESS_V1 = ME_V1 + "/request-access"
     GRANT_ACCESS_V1 = ME_V1 + "/grant"
+    REQUEST_STATUS_V1 = ME_V1 + "/request-status"
 
 class ExternalURLs:
     pass

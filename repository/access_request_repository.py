@@ -13,3 +13,9 @@ class AccessHistoryRepository(Protocol):
 
     async def get_pending_requests_by_owner_id(self, owner_id: UUID) -> list[AccessRequestSchema]:
         ...
+
+    async def get_by_id(self, access_id: UUID) -> AccessRequestSchema:
+        ...
+
+    async def get_by_requester_id(self, user_id: UUID) -> list[AccessRequestSchema]:
+        ...

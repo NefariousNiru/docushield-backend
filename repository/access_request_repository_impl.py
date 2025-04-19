@@ -25,6 +25,21 @@ class AccessHistoryRepositoryImpl(AccessHistoryRepository):
 
 
     async def get_pending_requests_by_owner_id(self, owner_id: UUID):
-        query = select(AccessRequestSchema).where(AccessRequestSchema.owner_id == owner_id and AccessRequestSchema.status == AccessStatus.PENDING)
+        query = select(AccessRequestSchema).where(
+            (AccessRequestSchema.owner_id == owner_id) &
+            (AccessRequestSchema.status == AccessStatus.PENDING)
+        )
+        result = await self.db_session.execute(query)
+        return result.scalars().all()
+
+
+    async def get_by_id(self, access_id: UUID) -> AccessRequestSchema:
+        query = select(AccessRequestSchema).where(AccessRequestSchema.id == access_id)
+        result = await self.db_session.execute(query)
+        return result.scalar_one_or_none()
+
+
+    async def get_by_requester_id(self, user_id: UUID) -> list[AccessRequestSchema]:
+        query = select(AccessRequestSchema).where(AccessRequestSchema.requester_id == user_id)
         result = await self.db_session.execute(query)
         return result.scalars().all()

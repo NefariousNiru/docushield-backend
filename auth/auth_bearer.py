@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import jwt
 from fastapi.security import HTTPBearer
 from fastapi import Request, HTTPException
