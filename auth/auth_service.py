@@ -118,6 +118,7 @@ async def create_token(user: UserSchema, db_session: AsyncSession) -> str | None
         await auth_token_repo.add(user_id=user.id, token=token, created_at=created_at, expires_at=expires_at)
         return token
     except Exception as e:
+        await db_session.rollback()
         raise TokenCreationError(f"Token creation failed: {str(e)}")
 
 
@@ -134,4 +135,5 @@ async def check_session(request: Request, db_session: AsyncSession) -> dict:
             return { "valid": False }
         return { "valid": True, "payload": payload }
     except (jwt.ExpiredSignatureError, jwt.DecodeError):
+        await db_session.rollback()
         return { "valid": False }

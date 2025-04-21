@@ -15,10 +15,16 @@ class DocumentRepositoryImpl(DocumentRepository):
         return result.scalars().all()
 
 
-    async def get_by_id(self, document_id: UUID) -> DocumentSchema | None:
+    async def get_by_id(self, document_id: str) -> DocumentSchema | None:
         query = select(DocumentSchema).where(DocumentSchema.id == document_id)
         result = await self.db_session.execute(query)
         return result.scalar_one_or_none()
+
+
+    async def get_all_by_id(self, document_id: list[str]) -> list[DocumentSchema]:
+        query = select(DocumentSchema).where(DocumentSchema.id.in_(document_id))
+        result = await self.db_session.execute(query)
+        return result.scalars().all()
 
 
     async def add(self, document: DocumentSchema):

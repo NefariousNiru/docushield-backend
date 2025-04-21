@@ -7,7 +7,10 @@ class DocumentRepository(Protocol):
     async def get_by_owner_id(self, owner_id: UUID) -> List[DocumentSchema]:
         ...
 
-    async def get_by_id(self, document_id: UUID) -> DocumentSchema | None:
+    async def get_by_id(self, document_id: str) -> DocumentSchema | None:
+        ...
+
+    async def get_all_by_id(self, document_id: list[str]) -> list[DocumentSchema]:
         ...
 
     async def add(self, document: DocumentSchema):

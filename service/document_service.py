@@ -8,17 +8,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.constants.errors import INTERNAL_SERVER_ERROR
 from config.constants.keys import Keys
 from exceptions.object_not_found import ObjectNotFoundError
-from model.document import DocumentResponse
+from model.document_response import DocumentResponse
 from model.document_upload_request import DocumentUploadRequest
+from repository.access_request_repository_impl import AccessHistoryRepositoryImpl
 from repository.document_repository import DocumentRepository
 from repository.document_repository_impl import DocumentRepositoryImpl
 from repository.encryption_key_store_repository import EncryptionKeyStoreRepository
 from repository.encryption_key_store_repository_impl import EncryptionKeyStoreRepositoryImpl
 from repository.user_repository import UserRepository
 from repository.user_repository_impl import UserRepositoryImpl
+from schema.access_request_schema import AccessRequestSchema
 from schema.document_schema import DocumentSchema
 from util import utils
-from util.enums import AccountType
+from util.enums import AccountType, AccessStatus
 from util.logger import logger
 
 
@@ -42,30 +44,8 @@ async def get_document_info(user_id: UUID, db_session: AsyncSession) -> list[Doc
         ]
 
     except Exception as e:
-        logger.error(f"Error fetching documents: {e}")
-        raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
-
-
-async def get_document_hash(user_id: UUID, document_id: UUID, db_session: AsyncSession) -> dict:
-    try:
-        document_repo = DocumentRepositoryImpl(db_session=db_session)
-        document: DocumentSchema | None = await document_repo.get_by_id(document_id)
-        if not document:
-            raise ObjectNotFoundError("Document not found")
-
-        if str(document.owner_id) != str(user_id):
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        return {"hash": document.hash}
-
-    except ObjectNotFoundError as e:
-        raise HTTPException(status_code=404, detail=e.message)
-
-    except HTTPException as http_ex:
-        raise http_ex
-
-    except Exception as e:
-        logger.error(f"Error occurred while fetching document_id: {document_id} for user: {user_id}")
+        await db_session.rollback()
+        logger.error(f"Error fetching documents: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
 
@@ -113,11 +93,10 @@ async def add_document(form_data: DocumentUploadRequest, uploader_id: UUID, file
         document_repo: DocumentRepository = DocumentRepositoryImpl(db_session)
         await document_repo.add(
             document=DocumentSchema(
-                id=uuid.uuid4(),
+                id=document_sha256,
                 uploader_id=uploader_id,
                 owner_id=form_data.owner_id,
                 encrypted_data=signed_encrypted_blob,
-                hash=document_sha256,
                 created_at=int(time.time()),
                 title=form_data.title
             )
@@ -139,7 +118,7 @@ async def add_document(form_data: DocumentUploadRequest, uploader_id: UUID, file
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
 
-async def get_document(document_id: UUID, user_id: UUID, db_session: AsyncSession):
+async def get_document(document_id: str, user_id: UUID, db_session: AsyncSession):
     try:
         # Fetch document
         document_repo = DocumentRepositoryImpl(db_session)
@@ -160,9 +139,11 @@ async def get_document(document_id: UUID, user_id: UUID, db_session: AsyncSessio
         )
 
     except HTTPException as http_ex:
+        await db_session.rollback()
         raise http_ex
 
     except Exception as e:
+        await db_session.rollback()
         logger.error(f"[DownloadDocument] Failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
@@ -174,12 +155,64 @@ async def get_document_by_uploader_id(uploader_id: UUID, db_session) -> list[Doc
 
         userRepo: UserRepository = UserRepositoryImpl(db_session=db_session)
         name = await userRepo.find_all_name_by_user_id(user_ids=[doc.owner_id for doc in docs])
-        print(name)
         return [
             DocumentResponse(id=doc.id, title=doc.title, created_at=doc.created_at,
                              uploaded_for=name.get(doc.owner_id, "Unknown Owner"), uploaded_by=None)
             for doc in docs
         ]
     except Exception as e:
+        await db_session.rollback()
         logger.error(f"Error fetching documents: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
+
+
+async def document_download(user_id: str, access_id: UUID, db_session: AsyncSession):
+    try:
+        # 1. Load the request
+        access_repo = AccessHistoryRepositoryImpl(db_session)
+        access_req: AccessRequestSchema = await access_repo.get_by_id(access_id=access_id)
+        if not access_req:
+            raise ObjectNotFoundError("Request does not exists or is expired")
+
+        # 2. Authorize
+        if str(access_req.requester_id) != user_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        if access_req.status != AccessStatus.APPROVED:
+            raise HTTPException(status_code=400, detail="Document already accessed or not approved for download")
+
+        # 3. Load the encrypted document
+        doc_repo = DocumentRepositoryImpl(db_session)
+        document: DocumentSchema = await doc_repo.get_by_id(document_id=access_req.doc_id)
+        if not document:
+            raise ObjectNotFoundError("Document does not exist")
+
+        # 4. Decrypt
+        eks: EncryptionKeyStoreRepository = EncryptionKeyStoreRepositoryImpl(db_session)
+        blob = document.encrypted_data
+        encrypted_private_key = await eks.get_private_key_by_user_id(access_req.owner_id)
+        issuer_public_pem = await eks.get_public_key_by_user_id(document.uploader_id)
+        plaintext = utils.decrypt_data(blob=blob, enc_priv=encrypted_private_key, org_pub_pem=issuer_public_pem)
+
+        # 4. Mark as Completed
+        access_req.status = AccessStatus.COMPLETED
+        await db_session.commit()
+
+        # 11. Stream back document
+        filename = f"{document.title}.pdf"
+        return StreamingResponse(
+            io.BytesIO(plaintext),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+
+    except ObjectNotFoundError as obj:
+        await db_session.rollback()
+        raise HTTPException(status_code=404, detail=obj.message)
+    except HTTPException as http_exc:
+        await db_session.rollback()
+        raise http_exc
+    except Exception as e:
+        await db_session.rollback()
+        logger.error(f"Error fetching documents: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
+

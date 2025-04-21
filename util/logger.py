@@ -1,4 +1,5 @@
 import logging
+import sys
 from logging.handlers import RotatingFileHandler
 import os
 from datetime import datetime
@@ -23,6 +24,18 @@ class CustomRotatingFileHandler(RotatingFileHandler):
         self.baseFilename = get_log_file_name()  # Update the filename dynamically
         super().doRollover()
 
+
+def wrap_logger_with_exc_info(logger):
+    def make_wrapper(method):
+        def wrapper(msg, *args, **kwargs):
+            if sys.exc_info()[0] is not None and 'exc_info' not in kwargs:
+                kwargs['exc_info'] = True
+            return method(msg, *args, **kwargs)
+        return wrapper
+
+    for level in ['debug', 'info', 'warning', 'error', 'critical', 'exception']:
+        setattr(logger, level, make_wrapper(getattr(logger, level)))
+
 # Configure the custom handler
 log_file = get_log_file_name()
 handler = CustomRotatingFileHandler(
@@ -36,4 +49,6 @@ handler.setFormatter(formatter)
 # Configure the root logger
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
+
 logger.addHandler(handler)
+wrap_logger_with_exc_info(logger)
