@@ -12,7 +12,7 @@ class AuditAction(Enum):
     REQUESTED_DOCUMENT = "Requested Document"
     APPROVED_REQUEST = "Approved Request"
     DOWNLOADED_DOCUMENT = "Downloaded Document"
-    REVOKED_ACCESS = "Revoked Access"
+    ADDED_DOCUMENT = "Added Document"
     LOGIN = "Login"
     LOGOUT = "Logout"
 
