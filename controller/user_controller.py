@@ -13,6 +13,12 @@ from util.enums import AccountType
 
 user_controller = APIRouter()
 
+
+@user_controller.get(InternalURIs.ME_V1)
+async def who_am_i(request: Request):
+    return {"user_id": request.state.user_id}
+
+
 @user_controller.get(InternalURIs.PUBLIC_KEY_V1)
 async def get_public_key(request: Request, db_session: AsyncSession = Depends(get_db)):
     user_id = request.state.user_id
