@@ -19,7 +19,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:4200",  # Frontend on local development
-        "https://docushield-frontend-production.up.railway.app/"
+        "https://docushield-frontend-production.up.railway.app"
     ],
     allow_credentials=True,  # Allow cookies and other credentials
     allow_methods=["*"],  # Allowed HTTP Methods
