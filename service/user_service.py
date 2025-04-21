@@ -18,5 +18,6 @@ async def get_public_key(user_id: UUID, db_session: AsyncSession) -> JSONRespons
         else:
             raise ObjectNotFoundError(f"Public key not found for user: {user_id}")
     except Exception as e:
+        await db_session.rollback()
         logger.error(f"Unable to get Public Key for user: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)

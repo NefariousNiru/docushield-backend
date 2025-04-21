@@ -10,6 +10,7 @@ class InternalURIs:
     REQUEST_ACCESS_V1 = ME_V1 + "/request-access"
     GRANT_ACCESS_V1 = ME_V1 + "/grant"
     REQUEST_STATUS_V1 = ME_V1 + "/request-status"
+    DOWNLOAD_V1 = ME_V1 + "/download"
 
 class ExternalURLs:
     pass

@@ -7,7 +7,7 @@ from config.constants.urls import InternalURIs
 from config.database import get_db
 from model.grant_access_request import GrantAccessRequest
 from model.request_access_payload import RequestAccessPayload
-from service import access_service
+from service import access_service, document_service
 from util.enums import AccountType
 
 access_controller = APIRouter()
@@ -44,3 +44,9 @@ async def request_access(request: Request, request_payload: RequestAccessPayload
 async def request_access_status(request: Request, db_session: AsyncSession = Depends(get_db)):
     user_id = request.state.user_id
     return await access_service.request_access_status(user_id=user_id, db_session=db_session)
+
+
+@access_controller.get(InternalURIs.DOWNLOAD_V1, dependencies=[Depends(require_role(AccountType.ORGANIZATION))])
+async def download_document(request: Request, access_id: UUID, db_session: AsyncSession = Depends(get_db)):
+    user_id = request.state.user_id
+    return await document_service.document_download(user_id=user_id, access_id=access_id, db_session=db_session)
