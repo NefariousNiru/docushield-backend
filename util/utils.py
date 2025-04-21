@@ -1,12 +1,17 @@
 import os
 import hashlib
 import base64
+
+from cryptography.exceptions import InvalidSignature
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
+from fastapi import HTTPException
+
 from config.constants.keys import Keys
+from util.logger import logger
 
 
 def generate_encryption_key_pair() -> tuple[str, str]:
@@ -101,3 +106,50 @@ def decrypt_private_key(encrypted_private_key: str) -> str:
 
     decrypted_bytes = fernet.decrypt(encrypted_private_key.encode())
     return decrypted_bytes.decode('utf-8')  # PEM-formatted private key
+
+
+def decrypt_data(blob: bytes, enc_priv: str, org_pub_pem: str) -> bytes:
+    # 1. Split signature / encrypted payload
+    sig, encrypted_payload = blob.split(Keys.SIGNATURE_SEPARATOR, 1)
+
+    # 2. Split AES‑RSA bundle
+    encrypted_aes_key, iv, tag, ciphertext = encrypted_payload.split(Keys.AES_RSA_SEPARATOR)
+
+    # 3. Decrypt the owner’s private key (PEM) using your Fernet helper
+    private_pem_str = decrypt_private_key(enc_priv)
+    private_key = serialization.load_pem_private_key(
+        private_pem_str.encode('utf-8'),
+        password=None
+    )
+
+    # 4. RSA‑decrypt the AES key
+    aes_key = private_key.decrypt(
+        encrypted_aes_key,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+
+    # 5. AES‑GCM decrypt the ciphertext
+    decrypt = Cipher(
+        algorithms.AES(aes_key),
+        modes.GCM(iv, tag),
+        backend=default_backend()
+    ).decryptor()
+    plaintext = decrypt.update(ciphertext) + decrypt.finalize()
+
+    # 6. Verify the issuer’s signature
+    org_public = serialization.load_pem_public_key(org_pub_pem.encode('utf-8'))
+    org_public.verify(
+        sig,
+        plaintext,
+        padding.PSS(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
+
+    return plaintext

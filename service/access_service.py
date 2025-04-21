@@ -1,8 +1,6 @@
 import time
 import uuid
 from uuid import UUID
-from warnings import catch_warnings
-
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from config.constants.errors import INTERNAL_SERVER_ERROR
@@ -56,6 +54,7 @@ async def get_access_history(user_id: UUID, db_session: AsyncSession):
         ]
 
     except Exception as e:
+        await db_session.rollback()
         logger.error(f"Error fetching documents: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
@@ -80,8 +79,10 @@ async def request_access(user_id: UUID, owner_id: UUID, document_id: str, db_ses
         )
         await access_repo.add(request=access_request)
     except ObjectNotFoundError as obj:
+        await db_session.rollback()
         raise HTTPException(status_code=404, detail=obj.message)
     except Exception as e:
+        await db_session.rollback()
         logger.error(f"Error fetching documents: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
@@ -92,8 +93,6 @@ async def get_requested_access(user_id: UUID, db_session: AsyncSession):
         access_repo: AccessHistoryRepository = AccessHistoryRepositoryImpl(db_session=db_session)
         pending_requests: list[AccessRequestSchema] = await access_repo.get_pending_requests_by_owner_id(
             owner_id=user_id)
-        for pending_request in pending_requests:
-            print(pending_request.id)
         if not pending_requests:
             return []
 
@@ -130,6 +129,7 @@ async def get_requested_access(user_id: UUID, db_session: AsyncSession):
             )
         return response
     except Exception as e:
+        await db_session.rollback()
         logger.error(f"Error occurred getting pending requests {e}")
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
@@ -153,10 +153,13 @@ async def grant_access(user_id: str, access_id: UUID, approve: bool, db_session:
         await db_session.commit()
         await db_session.refresh(access_request)
     except ObjectNotFoundError as obj:
+        await db_session.rollback()
         raise HTTPException(status_code=404, detail=obj.message)
     except HTTPException as http_exc:
+        await db_session.rollback()
         raise http_exc
     except Exception as e:
+        await db_session.rollback()
         logger.error(f"Error occurred getting pending requests {e}")
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
@@ -198,5 +201,6 @@ async def request_access_status(user_id: str, db_session: AsyncSession):
 
         return AccessStatusResponse(**result)
     except Exception as e:
+        await db_session.rollback()
         logger.error(f"Error occurred getting pending requests {e}")
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
