@@ -5,7 +5,7 @@ from config.database import Base
 
 
 class AuthLogsSchema(Base):
-    __tablename__ = "encryption_key_store"
+    __tablename__ = "auth_logs"
 
     user_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), primary_key=True, unique=True, nullable=False)
     failed_attempts = Column(Integer, default=0, nullable=False)

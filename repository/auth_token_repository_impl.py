@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from repository.auth_token_repository import AuthTokenRepository
@@ -23,3 +23,8 @@ class AuthTokenRepositoryImpl(AuthTokenRepository):
         query = select(AuthTokenSchema).where(AuthTokenSchema.token == auth_token)
         result = await self.db_session.execute(query)
         return result.scalar_one_or_none()
+
+
+    async def delete(self, token: str):
+        query = delete(AuthTokenSchema).where(AuthTokenSchema.token == token)
+        result = await self.db_session.execute(query)

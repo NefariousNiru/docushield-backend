@@ -1,6 +1,7 @@
 class InternalURIs:
     SIGN_IN_V1 = "/v1/auth/signin"
     SIGN_UP_V1 = "/v1/auth/signup"
+    LOGOUT_V1 = "/v1/auth/logout"
     ME_V1 = "/v1/me"
     PUBLIC_KEY_V1 = ME_V1 + "/pubkey"
     DOCUMENT_V1 = ME_V1 + "/document"

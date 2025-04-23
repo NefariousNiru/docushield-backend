@@ -10,3 +10,6 @@ class AuthTokenRepository(Protocol):
 
     async def find_by_auth_token(self, auth_token: str) -> AuthTokenSchema:
         ...
+
+    async def delete(self, token: str):
+        ...

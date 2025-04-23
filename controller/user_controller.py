@@ -2,6 +2,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import UploadFile, Form, Request, Depends, APIRouter
 from aop.require_role import require_role
+from auth import auth_service
 from config.constants.urls import InternalURIs
 from config.database import get_db
 from model.document_response import DocumentResponse
@@ -17,6 +18,11 @@ user_controller = APIRouter()
 @user_controller.get(InternalURIs.ME_V1)
 async def who_am_i(request: Request):
     return {"user_id": request.state.user_id, "role": request.state.role}
+
+
+@user_controller.post(InternalURIs.LOGOUT_V1)
+async def sign_up(request: Request, db_session: AsyncSession = Depends(get_db)):
+    return await auth_service.logout(request=request, db_session=db_session)
 
 
 @user_controller.get(InternalURIs.PUBLIC_KEY_V1)
