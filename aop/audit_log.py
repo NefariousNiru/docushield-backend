@@ -3,12 +3,12 @@ from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from repository.audit_log_repository import AuditLogRepository
 from repository.audit_log_repository_impl import AuditLogRepositoryImpl
-from schema.audit_log_schema import AuditAction
+from schema.audit_log_schema import AuditAction, AuditLogSchema
 
-def audit_log(action: AuditAction, doc_id_arg: str | None = None, autocommit: bool = False):
+
+def audit_log(action: AuditAction, doc_id_arg: str | None = None):
     """
     Decorator for FastAPI endpoint or service function.
-    :param autocommit: Automatically commit to database
     :param action:      which AuditAction to record
     :param doc_id_arg:  name of the kwarg that holds the document UUID (optional)
     """
@@ -34,16 +34,16 @@ def audit_log(action: AuditAction, doc_id_arg: str | None = None, autocommit: bo
 
             # build repository & log
             repo: AuditLogRepository = AuditLogRepositoryImpl(db_session)
-            await repo.add(
+            audit_log_obj: AuditLogSchema = AuditLogSchema(
                 user_id    = request.state.user_id,
                 action     = action,
                 ip_address = request.client.host,
                 user_agent = request.headers.get("user-agent", ""),
                 doc_id     = doc_id
             )
-            if autocommit:
-                await db_session.commit()
-
+            await repo.add(audit_log_obj)
+            await db_session.commit()
+            await db_session.refresh(repo)
             return result
         return wrapper
     return decorator

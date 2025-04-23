@@ -10,6 +10,7 @@ from repository.auth_log_repository import AuthLogsRepository
 from repository.auth_log_repository_impl import AuthLogsRepositoryImpl
 from repository.encryption_key_store_repository import EncryptionKeyStoreRepository
 from repository.encryption_key_store_repository_impl import EncryptionKeyStoreRepositoryImpl
+from schema.audit_log_schema import AuditLogSchema
 from schema.auth_logs_schema import AuthLogsSchema
 from schema.auth_token_schema import AuthTokenSchema
 from util import utils
@@ -203,13 +204,14 @@ async def logout(request: Request, db_session: AsyncSession):
 async def audit_auth(user_id: UUID, audit_action: AuditAction, request: Request, db_session: AsyncSession):
     try:
         audit_repo: AuditLogRepository = AuditLogRepositoryImpl(db_session=db_session)
-        await audit_repo.add(
+        audit_schema: AuditLogSchema = AuditLogSchema(
             user_id=user_id,
             action=audit_action,
             ip_address=request.client.host,
             user_agent=request.headers.get("user-agent", ""),
             doc_id=None
         )
+        await audit_repo.add(log=audit_schema)
     except Exception as e:
         raise e
 

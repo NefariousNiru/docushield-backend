@@ -15,7 +15,7 @@ access_controller = APIRouter()
 
 @access_controller.get(InternalURIs.ACCESS_HISTORY_V1)
 async def get_access_history(request: Request, db_session: AsyncSession = Depends(get_db)):
-    #
+    # Individual gets their access history of all documents they own
     user_id = request.state.user_id
     return await access_service.get_access_history(user_id=user_id, db_session=db_session)
 
