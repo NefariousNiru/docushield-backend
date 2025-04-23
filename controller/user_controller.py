@@ -1,6 +1,8 @@
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import UploadFile, Form, Request, Depends, APIRouter
+
+from aop.audit_log import audit_log
 from aop.require_role import require_role
 from auth import auth_service
 from config.constants.urls import InternalURIs
@@ -10,7 +12,7 @@ from model.document_upload_request import DocumentUploadRequest
 from repository.document_repository import DocumentRepository
 from repository.document_repository_impl import DocumentRepositoryImpl
 from service import user_service, document_service
-from util.enums import AccountType
+from util.enums import AccountType, AuditAction
 
 user_controller = APIRouter()
 
@@ -21,6 +23,7 @@ async def who_am_i(request: Request):
 
 
 @user_controller.post(InternalURIs.LOGOUT_V1)
+@audit_log(AuditAction.LOGOUT)
 async def sign_up(request: Request, db_session: AsyncSession = Depends(get_db)):
     return await auth_service.logout(request=request, db_session=db_session)
 

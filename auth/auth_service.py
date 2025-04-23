@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.responses import JSONResponse
 from fastapi import Request
 from config.constants.errors import INTERNAL_SERVER_ERROR
+from repository.audit_log_repository import AuditLogRepository
+from repository.audit_log_repository_impl import AuditLogRepositoryImpl
 from repository.auth_log_repository import AuthLogsRepository
 from repository.auth_log_repository_impl import AuthLogsRepositoryImpl
 from repository.encryption_key_store_repository import EncryptionKeyStoreRepository
@@ -22,24 +24,24 @@ from repository.user_repository_impl import UserRepositoryImpl
 from schema.user_schema import UserSchema
 from uuid import uuid4, UUID
 from passlib.hash import bcrypt
-from util.enums import Environment
+from util.enums import Environment, AuditAction
 from util.logger import logger
 import jwt
 
 
-async def sign_up(request: SignUpRequest, db_session: AsyncSession) -> JSONResponse | None:
+async def sign_up(request: Request, sign_up_request: SignUpRequest, db_session: AsyncSession) -> JSONResponse | None:
     user = UserSchema(
         id=uuid4(),
-        email=request.email,
-        name=request.name,
-        password=bcrypt.hash(request.password),
-        role=request.account_type,
+        email=sign_up_request.email,
+        name=sign_up_request.name,
+        password=bcrypt.hash(sign_up_request.password),
+        role=sign_up_request.account_type,
         is_active=True
     )
     try:
         # Add a user
         user_repository: UserRepository = UserRepositoryImpl(db_session=db_session)
-        existing_user = await user_repository.find_by_email(request.email)
+        existing_user = await user_repository.find_by_email(sign_up_request.email)
         if existing_user:
             raise HTTPException(status_code=409, detail="User already exists with this email.")
         await user_repository.add(user=user)
@@ -51,6 +53,9 @@ async def sign_up(request: SignUpRequest, db_session: AsyncSession) -> JSONRespo
         public_key, encrypted_private_key = utils.generate_encryption_key_pair()
         encryption_repository: EncryptionKeyStoreRepository = EncryptionKeyStoreRepositoryImpl(db_session=db_session)
         await encryption_repository.create_public_key(user_id=user.id, public_key=public_key, encrypted_private_key=encrypted_private_key)
+
+        # Audit Log Auth
+        await audit_auth(user_id=user.id, audit_action=AuditAction.SIGNUP, request=request, db_session=db_session)
 
         await db_session.commit()
 
@@ -67,19 +72,22 @@ async def sign_up(request: SignUpRequest, db_session: AsyncSession) -> JSONRespo
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
 
 
-async def sign_in(request: SignInRequest, db_session: AsyncSession) -> JSONResponse | None:
+async def sign_in(request: Request, sign_in_request: SignInRequest, db_session: AsyncSession) -> JSONResponse | None:
     try:
         # Check for user
         user_repository: UserRepository = UserRepositoryImpl(db_session=db_session)
-        user: UserSchema = await user_repository.find_by_email(request.email)
+        user: UserSchema = await user_repository.find_by_email(sign_in_request.email)
 
         # Check if user is valid
         if not user:
             raise HTTPException(status_code=401, detail="Invalid Credentials")
 
         # Create/Fetch Auth Log
-        valid = bcrypt.verify(request.password, user.password)
+        valid = bcrypt.verify(sign_in_request.password, user.password)
         await process_sign_in_attempt(user_id=user.id, password_valid=valid, db_session=db_session)
+
+        # Audit Log Auth
+        await audit_auth(user_id=user.id, audit_action=AuditAction.SIGNIN, request=request, db_session=db_session)
 
         # Create a token
         token: str = await create_token(user=user, db_session=db_session)
@@ -190,3 +198,18 @@ async def logout(request: Request, db_session: AsyncSession):
     except Exception as e:
         await db_session.rollback()
         raise HTTPException(status_code=500, detail=INTERNAL_SERVER_ERROR)
+
+
+async def audit_auth(user_id: UUID, audit_action: AuditAction, request: Request, db_session: AsyncSession):
+    try:
+        audit_repo: AuditLogRepository = AuditLogRepositoryImpl(db_session=db_session)
+        await audit_repo.add(
+            user_id=user_id,
+            action=audit_action,
+            ip_address=request.client.host,
+            user_agent=request.headers.get("user-agent", ""),
+            doc_id=None
+        )
+    except Exception as e:
+        raise e
+
