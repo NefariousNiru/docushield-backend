@@ -10,10 +10,11 @@ class AccountType(Enum):
 
 class AuditAction(Enum):
     REQUESTED_DOCUMENT = "Requested Document"
-    APPROVED_REQUEST = "Approved Request"
+    MODIFIED_REQUEST = "Modified Request" # Represents a general modification in access status made by the User
     DOWNLOADED_DOCUMENT = "Downloaded Document"
     ADDED_DOCUMENT = "Added Document"
-    LOGIN = "Login"
+    SIGNIN = "SignIn"
+    SIGNUP = "SignUp"
     LOGOUT = "Logout"
 
 class AccessStatus(Enum):
