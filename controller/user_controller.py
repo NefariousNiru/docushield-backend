@@ -24,7 +24,7 @@ async def who_am_i(request: Request):
 
 @user_controller.post(InternalURIs.LOGOUT_V1)
 @audit_log(AuditAction.LOGOUT)
-async def sign_up(request: Request, db_session: AsyncSession = Depends(get_db)):
+async def logout(request: Request, db_session: AsyncSession = Depends(get_db)):
     return await auth_service.logout(request=request, db_session=db_session)
 
 
