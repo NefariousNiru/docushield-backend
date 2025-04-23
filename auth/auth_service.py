@@ -207,9 +207,10 @@ async def audit_auth(user_id: UUID, audit_action: AuditAction, request: Request,
         audit_schema: AuditLogSchema = AuditLogSchema(
             user_id=user_id,
             action=audit_action,
+            doc_id=None,
+            timestamp = int(time.time()),
             ip_address=request.client.host,
             user_agent=request.headers.get("user-agent", ""),
-            doc_id=None
         )
         await audit_repo.add(log=audit_schema)
     except Exception as e:

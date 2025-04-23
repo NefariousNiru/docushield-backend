@@ -30,18 +30,21 @@ async def logout(request: Request, db_session: AsyncSession = Depends(get_db)):
 
 @user_controller.get(InternalURIs.PUBLIC_KEY_V1)
 async def get_public_key(request: Request, db_session: AsyncSession = Depends(get_db)):
+    # User gets their public key
     user_id = request.state.user_id
     return await user_service.get_public_key(user_id=user_id, db_session=db_session)
 
 
 @user_controller.get(InternalURIs.DOCUMENT_V1, response_model=list[DocumentResponse])
 async def get_document_info(request: Request, db_session: AsyncSession = Depends(get_db)):
+    # Get document info
     user_id = request.state.user_id
     return await document_service.get_document_info(user_id=user_id, db_session=db_session)
 
 
 @user_controller.get(InternalURIs.DOCUMENT_DOWNLOAD_V1)
 async def get_document(request: Request, document_id: str, db_session: AsyncSession = Depends(get_db)):
+    # TODO: Individual can also download files. Not plugged in yet.
     user_id = request.state.user_id
     return await document_service.get_document(document_id=document_id, user_id=user_id, db_session=db_session)
 
@@ -60,6 +63,7 @@ async def add_document(
     file: UploadFile = Form(...),
     db_session: AsyncSession = Depends(get_db)
 ):
+    # Organization adds a document
     uploader_id = request.state.user_id
     form_data = DocumentUploadRequest(
         title=title,
@@ -76,5 +80,6 @@ async def add_document(
 
 @user_controller.get(InternalURIs.DOCUMENT_UPLOADS_V1, dependencies=[Depends(require_role(AccountType.ORGANIZATION))])
 async def get_document_by_uploader_id(request: Request, db_session: AsyncSession = Depends(get_db)):
+    # Organization gets their own uploaded files.
     user_id = request.state.user_id
     return await document_service.get_document_by_uploader_id(uploader_id=user_id, db_session=db_session)

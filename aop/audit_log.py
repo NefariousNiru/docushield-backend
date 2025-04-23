@@ -1,3 +1,4 @@
+import time
 from functools import wraps
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,14 +37,15 @@ def audit_log(action: AuditAction, doc_id_arg: str | None = None):
             repo: AuditLogRepository = AuditLogRepositoryImpl(db_session)
             audit_log_obj: AuditLogSchema = AuditLogSchema(
                 user_id    = request.state.user_id,
+                doc_id     = doc_id,
                 action     = action,
+                timestamp  = int(time.time()),
                 ip_address = request.client.host,
-                user_agent = request.headers.get("user-agent", ""),
-                doc_id     = doc_id
+                user_agent = request.headers.get("user-agent", "")
             )
             await repo.add(audit_log_obj)
             await db_session.commit()
-            await db_session.refresh(repo)
+            await db_session.refresh(audit_log_obj)
             return result
         return wrapper
     return decorator
