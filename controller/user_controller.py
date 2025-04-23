@@ -16,7 +16,7 @@ user_controller = APIRouter()
 
 @user_controller.get(InternalURIs.ME_V1)
 async def who_am_i(request: Request):
-    return {"user_id": request.state.user_id}
+    return {"user_id": request.state.user_id, "role": request.state.role}
 
 
 @user_controller.get(InternalURIs.PUBLIC_KEY_V1)

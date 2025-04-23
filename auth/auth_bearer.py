@@ -25,5 +25,6 @@ class JWTBearer(HTTPBearer):
 
         payload = jwt.decode(jwt_token, Keys.JWT_SECRET, algorithms=["HS256"])
         request.state.user_id = session_validity["payload"]["user_id"]
+        request.state.role = session_validity["payload"]["role"]
         request.state.payload = payload
         return jwt_token
