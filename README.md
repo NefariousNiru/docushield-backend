@@ -88,3 +88,25 @@ uvicorn app:main --reload
 ```
 
 [Production Endpoint HERE:](https://docushield-backend-production.up.railway.app)
+
+## 📁 Folder Structure and Explanation
+
+```
+.
+├── aop/                 # Aspect-Oriented Programming modules (e.g., logging, security roles)
+├── auth/                # Authentication logic (bearer tokens, auth service)
+├── config/              # Configuration and constants (e.g., DB connection, keys, URLs)
+├── controller/          # API route controllers for auth, access, user
+├── documentation/       # Markdown documentation (e.g., DB schema)
+├── exceptions/          # Custom exception classes
+├── logs/                # (Expected to store logs - currently empty)
+├── main.py              # FastAPI app entry point
+├── model/               # Pydantic models for request/response payloads
+├── poetry.lock          # Poetry lock file for dependencies
+├── pyproject.toml       # Poetry config file listing dependencies, scripts, etc.
+├── repository/          # Repository interfaces and their implementations (data access layer)
+├── routes.py            # Routing logic (if centralized)
+├── schema/              # SQLAlchemy ORM or Pydantic schema definitions for DB entities
+├── service/             # Business logic layer (services for access, users, documents)
+├── util/                # Utility modules (e.g., logging, enums, transformers)
+```
